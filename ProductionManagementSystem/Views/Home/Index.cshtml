@@ -1,0 +1,1297 @@
+﻿@model ProductionManagementSystem.Controllers.DashboardViewModel
+@{
+    ViewData["Title"] = "Production Dashboard";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Production Management System</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <style>
+        .sidebar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.8);
+            padding: 12px 20px;
+            margin: 5px 0;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            color: white;
+            background: rgba(255,255,255,0.2);
+            transform: translateX(5px);
+        }
+        .main-content {
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-inprogress { background: #d4edda; color: #155724; }
+        .status-completed { background: #d1ecf1; color: #0c5460; }
+        .status-cancelled { background: #f8d7da; color: #721c24; }
+        .status-active { background: #d4edda; color: #155724; }
+        .status-stopped { background: #f8d7da; color: #721c24; }
+        .low-stock { background: #f8d7da; color: #721c24; }
+        .dashboard-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+        }
+        .production-line-card {
+            border-left: 5px solid #007bff;
+        }
+        .production-line-card.active {
+            border-left-color: #28a745;
+        }
+        .production-line-card.stopped {
+            border-left-color: #dc3545;
+        }
+        .interactive-panel {
+            display: none;
+        }
+        .interactive-panel.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav class="col-md-2 sidebar">
+                <div class="p-3">
+                    <h4 class="text-center mb-4">
+                        <i class="fas fa-industry"></i> Production System
+                    </h4>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#" onclick="showPanel('dashboard')">
+                                <i class="fas fa-dashboard"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showPanel('materials')">
+                                <i class="fas fa-boxes"></i> Materials
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showPanel('products')">
+                                <i class="fas fa-cogs"></i> Products
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showPanel('orders')">
+                                <i class="fas fa-clipboard-list"></i> Work Orders
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" onclick="showPanel('lines')">
+                                <i class="fas fa-industry"></i> Production Lines
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="col-md-10 main-content">
+                <div class="p-4">
+
+                    <!-- Dashboard Panel -->
+                    <div id="dashboard-panel" class="interactive-panel active">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h1><i class="fas fa-dashboard"></i> Production Dashboard</h1>
+                            <button class="btn btn-primary" onclick="refreshDashboard()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+
+                        <!-- Stats Cards -->
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="card dashboard-card">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-cogs fa-2x mb-3"></i>
+                                        <h3 id="total-products">@Model.TotalProducts</h3>
+                                        <p>Total Products</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card dashboard-card">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-boxes fa-2x mb-3"></i>
+                                        <h3 id="total-materials">@Model.TotalMaterials</h3>
+                                        <p>Total Materials</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card dashboard-card">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-clipboard-list fa-2x mb-3"></i>
+                                        <h3 id="active-orders">@Model.ActiveOrders</h3>
+                                        <p>Active Orders</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card dashboard-card">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                                        <h3 id="low-stock-materials">@Model.LowStockMaterials</h3>
+                                        <p>Low Stock Materials</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Orders -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5><i class="fas fa-clock"></i> Recent Work Orders</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        @if (Model.RecentOrders.Any())
+                                        {
+                                            <div class="table-responsive">
+                                                <table class="table table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Order ID</th>
+                                                            <th>Product</th>
+                                                            <th>Quantity</th>
+                                                            <th>Status</th>
+                                                            <th>Production Line</th>
+                                                            <th>Start Date</th>
+                                                            <th>Estimated End</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach (var order in Model.RecentOrders)
+                                                        {
+                                                            <tr>
+                                                                <td>#@order.Id</td>
+                                                                <td>@order.Product.Name</td>
+                                                                <td>@order.Quantity</td>
+                                                                <td><span class="status-badge status-@order.Status.ToLower()">@order.Status</span></td>
+                                                                <td>@(order.ProductionLine?.Name ?? "Not assigned")</td>
+                                                                <td>@order.StartDate.ToString("dd/MM/yyyy HH:mm")</td>
+                                                                <td>@order.EstimatedEndDate.ToString("dd/MM/yyyy HH:mm")</td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-muted">No recent orders found.</p>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5><i class="fas fa-bolt"></i> Quick Actions</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-3">
+                                                <button class="btn btn-success w-100 mb-2" onclick="showAddMaterialModal()">
+                                                    <i class="fas fa-plus"></i> Add Material
+                                                </button>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <button class="btn btn-primary w-100 mb-2" onclick="showAddProductModal()">
+                                                    <i class="fas fa-cogs"></i> Add Product
+                                                </button>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <button class="btn btn-warning w-100 mb-2" onclick="showCreateOrderModal()">
+                                                    <i class="fas fa-clipboard-list"></i> Create Order
+                                                </button>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <button class="btn btn-info w-100 mb-2" onclick="showAddLineModal()">
+                                                    <i class="fas fa-industry"></i> Add Line
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Materials Panel -->
+                    <div id="materials-panel" class="interactive-panel">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h1><i class="fas fa-boxes"></i> Materials Management</h1>
+                            <button class="btn btn-success" onclick="showAddMaterialModal()">
+                                <i class="fas fa-plus"></i> Add Material
+                            </button>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="materials-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Quantity</th>
+                                                <th>Unit</th>
+                                                <th>Min Stock</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Products Panel -->
+                    <div id="products-panel" class="interactive-panel">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h1><i class="fas fa-cogs"></i> Products Management</h1>
+                            <button class="btn btn-primary" onclick="showAddProductModal()">
+                                <i class="fas fa-plus"></i> Add Product
+                            </button>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <input type="text" class="form-control" id="product-search" placeholder="Search products...">
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="products-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Time (min/unit)</th>
+                                                <th>Category</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Orders Panel -->
+                    <div id="orders-panel" class="interactive-panel">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h1><i class="fas fa-clipboard-list"></i> Work Orders</h1>
+                            <button class="btn btn-warning" onclick="showCreateOrderModal()">
+                                <i class="fas fa-plus"></i> Create Order
+                            </button>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <select class="form-select" id="order-filter">
+                                        <option value="">All Orders</option>
+                                        <option value="active">Active Orders</option>
+                                        <option value="Pending">Pending</option>
+                                        <option value="InProgress">In Progress</option>
+                                        <option value="Completed">Completed</option>
+                                    </select>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="orders-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Product</th>
+                                                <th>Quantity</th>
+                                                <th>Status</th>
+                                                <th>Progress</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Production Lines Panel -->
+                    <div id="lines-panel" class="interactive-panel">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h1><i class="fas fa-industry"></i> Production Lines</h1>
+                            <button class="btn btn-info" onclick="showAddLineModal()">
+                                <i class="fas fa-plus"></i> Add Line
+                            </button>
+                        </div>
+
+                        <div id="production-lines-container"></div>
+                    </div>
+
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add Material Modal -->
+    <div class="modal fade" id="addMaterialModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Material</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-material-form">
+                        <div class="mb-3">
+                            <label class="form-label">Name</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Initial Quantity</label>
+                            <input type="number" class="form-control" name="quantity" step="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Unit of Measure</label>
+                            <select class="form-select" name="unit" required>
+                                <option value="кг">кг</option>
+                                <option value="шт">шт</option>
+                                <option value="литр">литр</option>
+                                <option value="м">м</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Minimal Stock</label>
+                            <input type="number" class="form-control" name="min_stock" step="0.01" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="addMaterial()">Add Material</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Product Modal -->
+    <div class="modal fade" id="addProductModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Product</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-product-form">
+                        <div class="mb-3">
+                            <label class="form-label">Name</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Production Time per Unit (minutes)</label>
+                            <input type="number" class="form-control" name="prod_time" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Category</label>
+                            <input type="text" class="form-control" name="category" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Required Materials</label>
+                            <div id="product-materials-container">
+                                <div class="row mb-2">
+                                    <div class="col-md-8">
+                                        <select class="form-select material-select" name="materials[]">
+                                            <option value="">Select Material</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <input type="number" class="form-control" name="quantities[]" placeholder="Quantity" step="0.01">
+                                    </div>
+                                    <div class="col-md-1">
+                                        <button type="button" class="btn btn-sm btn-success" onclick="addMaterialRow()">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="addProduct()">Add Product</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Order Modal -->
+    <div class="modal fade" id="createOrderModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Work Order</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="create-order-form">
+                        <div class="mb-3">
+                            <label class="form-label">Product</label>
+                            <select class="form-select" name="product_id" id="order-product-select" required onchange="calculateOrderTime()">
+                                <option value="">Select Product</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Quantity</label>
+                            <input type="number" class="form-control" name="quantity" id="order-quantity" required oninput="calculateOrderTime()">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Production Line</label>
+                            <select class="form-select" name="line_id" id="order-line-select" required onchange="calculateOrderTime()">
+                                <option value="">Select Production Line</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <div class="alert alert-info" id="order-calculation" style="display: none;">
+                                <h6>Production Calculation:</h6>
+                                <p id="calculation-details"></p>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="createOrder()">Create Order</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Production Line Modal -->
+    <div class="modal fade" id="addLineModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Production Line</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-line-form">
+                        <div class="mb-3">
+                            <label class="form-label">Name</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Efficiency Factor</label>
+                            <input type="number" class="form-control" name="efficiencyFactor" step="0.1" min="0.5" max="2.0" value="1.0" required>
+                            <div class="form-text">Range: 0.5 - 2.0 (1.0 = normal speed)</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" name="status">
+                                <option value="Active">Active</option>
+                                <option value="Stopped">Stopped</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="addProductionLine()">Add Line</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Replenish Stock Modal -->
+    <div class="modal fade" id="replenishModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Replenish Stock</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="replenish-form">
+                        <input type="hidden" id="replenish-material-id">
+                        <div class="mb-3">
+                            <label class="form-label">Material</label>
+                            <input type="text" class="form-control" id="replenish-material-name" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Current Stock</label>
+                            <input type="text" class="form-control" id="replenish-current-stock" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Amount to Add</label>
+                            <input type="number" class="form-control" id="replenish-amount" step="0.01" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="replenishStock()">Replenish</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Global variables
+        let materials = [];
+        let products = [];
+        let productionLines = [];
+        let workOrders = [];
+
+        // Initialize dashboard
+        $(document).ready(function() {
+            loadDashboardData();
+
+            // Set up event listeners
+            $('#product-search').on('input', filterProducts);
+            $('#order-filter').on('change', filterOrders);
+        });
+
+        // Panel switching
+        function showPanel(panelName) {
+            // Hide all panels
+            document.querySelectorAll('.interactive-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+
+            // Remove active class from all nav links
+            document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+
+            // Show selected panel
+            document.getElementById(panelName + '-panel').classList.add('active');
+
+            // Add active class to clicked nav link
+            event.target.closest('.nav-link').classList.add('active');
+
+            // Load data for specific panels
+            if (panelName === 'materials') {
+                loadMaterials();
+            } else if (panelName === 'products') {
+                loadProducts();
+            } else if (panelName === 'orders') {
+                loadWorkOrders();
+            } else if (panelName === 'lines') {
+                loadProductionLines();
+            }
+        }
+
+        // Dashboard data loading
+        async function loadDashboardData() {
+            try {
+                await Promise.all([
+                    loadMaterials(),
+                    loadProducts(),
+                    loadProductionLines(),
+                    loadWorkOrders()
+                ]);
+                updateDashboardStats();
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+            }
+        }
+
+        async function loadMaterials() {
+            try {
+                const response = await fetch('/api/materials');
+                materials = await response.json();
+                renderMaterialsTable();
+                populateMaterialSelects();
+            } catch (error) {
+                console.error('Error loading materials:', error);
+            }
+        }
+
+        async function loadProducts() {
+            try {
+                const response = await fetch('/api/products');
+                products = await response.json();
+                renderProductsTable();
+                populateProductSelects();
+            } catch (error) {
+                console.error('Error loading products:', error);
+            }
+        }
+
+        async function loadProductionLines() {
+            try {
+                const response = await fetch('/api/lines');
+                productionLines = await response.json();
+                renderProductionLines();
+                populateLineSelects();
+            } catch (error) {
+                console.error('Error loading production lines:', error);
+            }
+        }
+
+        async function loadWorkOrders() {
+            try {
+                const response = await fetch('/api/orders');
+                workOrders = await response.json();
+                renderOrdersTable();
+            } catch (error) {
+                console.error('Error loading work orders:', error);
+            }
+        }
+
+        // Rendering functions
+        function renderMaterialsTable() {
+            const tbody = document.querySelector('#materials-table tbody');
+            tbody.innerHTML = '';
+
+            materials.forEach(material => {
+                const isLowStock = material.quantity <= material.minimalStock;
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${material.name}</td>
+                    <td>
+                        <span class="${isLowStock ? 'low-stock' : ''} status-badge">
+                            ${material.quantity}
+                        </span>
+                    </td>
+                    <td>${material.unitOfMeasure}</td>
+                    <td>${material.minimalStock}</td>
+                    <td>
+                        <button class="btn btn-sm btn-success" onclick="showReplenishModal(${material.id}, '${material.name}', ${material.quantity}, '${material.unitOfMeasure}')">
+                            <i class="fas fa-plus"></i> Replenish
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderProductsTable() {
+            const tbody = document.querySelector('#products-table tbody');
+            tbody.innerHTML = '';
+
+            let filteredProducts = products;
+            const searchTerm = document.getElementById('product-search').value.toLowerCase();
+            if (searchTerm) {
+                filteredProducts = products.filter(p =>
+                    p.name.toLowerCase().includes(searchTerm) ||
+                    (p.category && p.category.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            filteredProducts.forEach(product => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${product.name}</td>
+                    <td>${product.productionTimePerUnit}</td>
+                    <td>${product.category || 'N/A'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="viewProductMaterials(${product.id})">
+                            <i class="fas fa-eye"></i> Materials
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderProductionLines() {
+            const container = document.getElementById('production-lines-container');
+            container.innerHTML = '';
+
+            productionLines.forEach(line => {
+                const lineDiv = document.createElement('div');
+                lineDiv.className = `card mb-3 production-line-card ${line.status.toLowerCase()}`;
+
+                const currentOrder = line.currentWorkOrder;
+                const progressBarWidth = currentOrder ? currentOrder.progress : 0;
+
+                lineDiv.innerHTML = `
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="card-title mb-0">${line.name}</h6>
+                            <div>
+                                <span class="status-badge status-${line.status.toLowerCase()}">${line.status}</span>
+                                <button class="btn btn-sm btn-outline-primary ms-2" onclick="toggleLineStatus(${line.id})">
+                                    <i class="fas fa-power-off"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <small class="text-muted">Efficiency: ${line.efficiencyFactor}x</small>
+                            <input type="range" class="form-range" min="0.5" max="2.0" step="0.1"
+                                   value="${line.efficiencyFactor}"
+                                   onchange="updateEfficiency(${line.id}, this.value)"
+                                   style="width: 100px; display: inline-block; margin-left: 10px;">
+                        </div>
+
+                        ${currentOrder ? `
+                            <div class="mb-2">
+                                <small><strong>Current Order:</strong> ${currentOrder.product.name} (${currentOrder.quantity} units)</small>
+                                <div class="progress mt-1" style="height: 6px;">
+                                    <div class="progress-bar" style="width: ${progressBarWidth}%"></div>
+                                </div>
+                            </div>
+                        ` : '<small class="text-muted">No active order</small>'}
+
+                        <button class="btn btn-sm btn-info" onclick="viewLineSchedule(${line.id})">
+                            <i class="fas fa-calendar"></i> Schedule
+                        </button>
+                    </div>
+                `;
+                container.appendChild(lineDiv);
+            });
+        }
+
+        function renderOrdersTable() {
+            const tbody = document.querySelector('#orders-table tbody');
+            tbody.innerHTML = '';
+
+            let filteredOrders = workOrders;
+            const filter = document.getElementById('order-filter').value;
+            if (filter) {
+                if (filter === 'active') {
+                    filteredOrders = workOrders.filter(o => o.status === 'Pending' || o.status === 'InProgress');
+                } else {
+                    filteredOrders = workOrders.filter(o => o.status === filter);
+                }
+            }
+
+            filteredOrders.forEach(order => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>#${order.id}</td>
+                    <td>${order.productName}</td>
+                    <td>${order.quantity}</td>
+                    <td><span class="status-badge status-${order.status.toLowerCase()}">${order.status}</span></td>
+                    <td>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar" style="width: ${order.progress}%"></div>
+                        </div>
+                        <small>${order.progress}%</small>
+                    </td>
+                    <td>
+                        ${order.status === 'Pending' ? `
+                            <button class="btn btn-sm btn-success" onclick="startOrder(${order.id})">
+                                <i class="fas fa-play"></i> Start
+                            </button>
+                        ` : ''}
+                        ${order.status === 'InProgress' ? `
+                            <button class="btn btn-sm btn-warning" onclick="updateProgress(${order.id})">
+                                <i class="fas fa-edit"></i> Progress
+                            </button>
+                        ` : ''}
+                        <button class="btn btn-sm btn-info" onclick="viewOrderDetails(${order.id})">
+                            <i class="fas fa-eye"></i> Details
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function updateDashboardStats() {
+            document.getElementById('total-products').textContent = products.length;
+            document.getElementById('total-materials').textContent = materials.length;
+            document.getElementById('active-orders').textContent = workOrders.filter(o => o.status === 'Pending' || o.status === 'InProgress').length;
+            document.getElementById('low-stock-materials').textContent = materials.filter(m => m.quantity <= m.minimalStock).length;
+        }
+
+        // Modal functions
+        function showAddMaterialModal() {
+            new bootstrap.Modal(document.getElementById('addMaterialModal')).show();
+        }
+
+        function showAddProductModal() {
+            new bootstrap.Modal(document.getElementById('addProductModal')).show();
+        }
+
+        function showCreateOrderModal() {
+            new bootstrap.Modal(document.getElementById('createOrderModal')).show();
+        }
+
+        function showAddLineModal() {
+            new bootstrap.Modal(document.getElementById('addLineModal')).show();
+        }
+
+        function showReplenishModal(id, name, currentStock, unit) {
+            document.getElementById('replenish-material-id').value = id;
+            document.getElementById('replenish-material-name').value = name;
+            document.getElementById('replenish-current-stock').value = `${currentStock} ${unit}`;
+            document.getElementById('replenish-amount').value = '';
+            new bootstrap.Modal(document.getElementById('replenishModal')).show();
+        }
+
+        // CRUD operations
+        async function addMaterial() {
+            const form = document.getElementById('add-material-form');
+            const formData = new FormData(form);
+
+            const materialData = {
+                name: formData.get('name'),
+                quantity: parseFloat(formData.get('quantity')),
+                unit: formData.get('unit'),
+                min_stock: parseFloat(formData.get('min_stock'))
+            };
+
+            try {
+                const response = await fetch('/api/materials', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(materialData)
+                });
+
+                if (response.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('addMaterialModal')).hide();
+                    form.reset();
+                    await loadMaterials();
+                    updateDashboardStats();
+                } else {
+                    alert('Error adding material');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error adding material');
+            }
+        }
+
+        async function addProduct() {
+            const form = document.getElementById('add-product-form');
+            const formData = new FormData(form);
+
+            const productData = {
+                name: formData.get('name'),
+                prod_time: parseInt(formData.get('prod_time')),
+                category: formData.get('category')
+            };
+
+            try {
+                const response = await fetch('/api/products', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(productData)
+                });
+
+                if (response.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('addProductModal')).hide();
+                    form.reset();
+                    await loadProducts();
+                    updateDashboardStats();
+                } else {
+                    alert('Error adding product');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error adding product');
+            }
+        }
+
+        async function createOrder() {
+            const form = document.getElementById('create-order-form');
+            const formData = new FormData(form);
+
+            const orderData = {
+                product_id: parseInt(formData.get('product_id')),
+                quantity: parseInt(formData.get('quantity')),
+                line_id: parseInt(formData.get('line_id'))
+            };
+
+            try {
+                const response = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(orderData)
+                });
+
+                if (response.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('createOrderModal')).hide();
+                    form.reset();
+                    document.getElementById('order-calculation').style.display = 'none';
+                    await loadWorkOrders();
+                    updateDashboardStats();
+                } else {
+                    const error = await response.text();
+                    alert('Error creating order: ' + error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error creating order');
+            }
+        }
+
+        async function addProductionLine() {
+            const form = document.getElementById('add-line-form');
+            const formData = new FormData(form);
+
+            const lineData = {
+                name: formData.get('name'),
+                efficiencyFactor: parseFloat(formData.get('efficiencyFactor')),
+                status: formData.get('status')
+            };
+
+            try {
+                const response = await fetch('/api/lines', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(lineData)
+                });
+
+                if (response.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('addLineModal')).hide();
+                    form.reset();
+                    await loadProductionLines();
+                } else {
+                    alert('Error adding production line');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error adding production line');
+            }
+        }
+
+        async function replenishStock() {
+            const materialId = document.getElementById('replenish-material-id').value;
+            const amount = parseFloat(document.getElementById('replenish-amount').value);
+
+            try {
+                const response = await fetch(`/api/materials/${materialId}/stock`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ amount: amount })
+                });
+
+                if (response.ok) {
+                    bootstrap.Modal.getInstance(document.getElementById('replenishModal')).hide();
+                    await loadMaterials();
+                    updateDashboardStats();
+                } else {
+                    alert('Error replenishing stock');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error replenishing stock');
+            }
+        }
+
+        // Utility functions
+        function populateMaterialSelects() {
+            const selects = document.querySelectorAll('.material-select');
+            selects.forEach(select => {
+                select.innerHTML = '<option value="">Select Material</option>';
+                materials.forEach(material => {
+                    const option = document.createElement('option');
+                    option.value = material.id;
+                    option.textContent = `${material.name} (${material.unitOfMeasure})`;
+                    select.appendChild(option);
+                });
+            });
+        }
+
+        function populateProductSelects() {
+            const select = document.getElementById('order-product-select');
+            select.innerHTML = '<option value="">Select Product</option>';
+            products.forEach(product => {
+                const option = document.createElement('option');
+                option.value = product.id;
+                option.textContent = product.name;
+                option.dataset.productionTime = product.productionTimePerUnit;
+                select.appendChild(option);
+            });
+        }
+
+        function populateLineSelects() {
+            const select = document.getElementById('order-line-select');
+            select.innerHTML = '<option value="">Select Production Line</option>';
+            productionLines.filter(line => line.status === 'Active').forEach(line => {
+                const option = document.createElement('option');
+                option.value = line.id;
+                option.textContent = `${line.name} (Efficiency: ${line.efficiencyFactor}x)`;
+                option.dataset.efficiency = line.efficiencyFactor;
+                select.appendChild(option);
+            });
+        }
+
+        async function calculateOrderTime() {
+            const productSelect = document.getElementById('order-product-select');
+            const quantityInput = document.getElementById('order-quantity');
+            const lineSelect = document.getElementById('order-line-select');
+            const calculationDiv = document.getElementById('order-calculation');
+            const detailsP = document.getElementById('calculation-details');
+
+            const productId = productSelect.value;
+            const quantity = parseInt(quantityInput.value);
+
+            if (productId && quantity) {
+                try {
+                    const response = await fetch('/api/calculate/production', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            product_id: parseInt(productId),
+                            quantity: quantity
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        let details = `Product: ${data.productName}<br>`;
+                        details += `Quantity: ${data.quantity} units<br>`;
+                        details += `Production Time per Unit: ${data.productionTimePerUnit} minutes<br><br>`;
+                        details += `<strong>Available Production Lines:</strong><br>`;
+
+                        data.lineCalculations.forEach(calc => {
+                            details += `• ${calc.lineName}: ${calc.totalHours} hours (${calc.totalMinutes} minutes)<br>`;
+                        });
+
+                        detailsP.innerHTML = details;
+                        calculationDiv.style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('Error calculating production time:', error);
+                }
+            } else {
+                calculationDiv.style.display = 'none';
+            }
+        }
+
+        function filterProducts() {
+            renderProductsTable();
+        }
+
+        function filterOrders() {
+            renderOrdersTable();
+        }
+
+        async function toggleLineStatus(lineId) {
+            const line = productionLines.find(l => l.id === lineId);
+            const newStatus = line.status === 'Active' ? 'Stopped' : 'Active';
+
+            try {
+                const response = await fetch(`/api/lines/${lineId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                if (response.ok) {
+                    await loadProductionLines();
+                    populateLineSelects();
+                }
+            } catch (error) {
+                console.error('Error toggling line status:', error);
+            }
+        }
+
+        async function updateEfficiency(lineId, efficiency) {
+            try {
+                const response = await fetch(`/api/lines/${lineId}/efficiency`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ efficiency: parseFloat(efficiency) })
+                });
+
+                if (response.ok) {
+                    await loadProductionLines();
+                }
+            } catch (error) {
+                console.error('Error updating efficiency:', error);
+            }
+        }
+
+        async function startOrder(orderId) {
+            try {
+                const response = await fetch(`/api/orders/${orderId}/progress`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ percent: 1 })
+                });
+
+                if (response.ok) {
+                    await loadWorkOrders();
+                    await loadProductionLines();
+                }
+            } catch (error) {
+                console.error('Error starting order:', error);
+            }
+        }
+
+        function updateProgress(orderId) {
+            const progress = prompt('Enter progress percentage (0-100):');
+            if (progress !== null) {
+                const percent = parseInt(progress);
+                if (percent >= 0 && percent <= 100) {
+                    updateOrderProgress(orderId, percent);
+                }
+            }
+        }
+
+        async function updateOrderProgress(orderId, percent) {
+            try {
+                const response = await fetch(`/api/orders/${orderId}/progress`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ percent: percent })
+                });
+
+                if (response.ok) {
+                    await loadWorkOrders();
+                    await loadProductionLines();
+                }
+            } catch (error) {
+                console.error('Error updating progress:', error);
+            }
+        }
+
+        async function viewOrderDetails(orderId) {
+            try {
+                const response = await fetch(`/api/orders/${orderId}/details`);
+                if (response.ok) {
+                    const order = await response.json();
+                    let details = `Order #${order.id}\n`;
+                    details += `Product: ${order.product.name}\n`;
+                    details += `Quantity: ${order.quantity}\n`;
+                    details += `Status: ${order.status}\n`;
+                    details += `Progress: ${order.progress}%\n`;
+                    details += `Start Date: ${new Date(order.startDate).toLocaleString()}\n`;
+                    details += `Estimated End: ${new Date(order.estimatedEndDate).toLocaleString()}\n\n`;
+                    details += `Required Materials:\n`;
+                    order.product.materials.forEach(material => {
+                        details += `• ${material.materialName}: ${material.totalNeeded} ${material.unitOfMeasure}\n`;
+                    });
+                    alert(details);
+                }
+            } catch (error) {
+                console.error('Error viewing order details:', error);
+            }
+        }
+
+        async function viewProductMaterials(productId) {
+            try {
+                const response = await fetch(`/api/products/${productId}/materials`);
+                if (response.ok) {
+                    const materials = await response.json();
+                    let details = 'Required Materials:\n';
+                    materials.forEach(material => {
+                        details += `• ${material.materialName}: ${material.quantityNeeded} ${material.unitOfMeasure}\n`;
+                        details += `  Available: ${material.availableQuantity} ${material.unitOfMeasure}\n`;
+                    });
+                    alert(details);
+                }
+            } catch (error) {
+                console.error('Error viewing product materials:', error);
+            }
+        }
+
+        async function viewLineSchedule(lineId) {
+            try {
+                const response = await fetch(`/api/lines/${lineId}/schedule`);
+                if (response.ok) {
+                    const schedule = await response.json();
+                    let details = 'Production Schedule:\n';
+                    if (schedule.length === 0) {
+                        details += 'No scheduled orders';
+                    } else {
+                        schedule.forEach(order => {
+                            details += `• Order #${order.id}: ${order.productName} (${order.quantity} units)\n`;
+                            details += `  Status: ${order.status}, Progress: ${order.progress}%\n`;
+                            details += `  Start: ${new Date(order.startDate).toLocaleString()}\n`;
+                            details += `  End: ${new Date(order.estimatedEndDate).toLocaleString()}\n\n`;
+                        });
+                    }
+                    alert(details);
+                }
+            } catch (error) {
+                console.error('Error viewing line schedule:', error);
+            }
+        }
+
+        function addMaterialRow() {
+            const container = document.getElementById('product-materials-container');
+            const newRow = document.createElement('div');
+            newRow.className = 'row mb-2';
+            newRow.innerHTML = `
+                <div class="col-md-8">
+                    <select class="form-select material-select" name="materials[]">
+                        <option value="">Select Material</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <input type="number" class="form-control" name="quantities[]" placeholder="Quantity" step="0.01">
+                </div>
+                <div class="col-md-1">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('.row').remove()">-</button>
+                </div>
+            `;
+            container.appendChild(newRow);
+            populateMaterialSelects();
+        }
+
+        function refreshDashboard() {
+            loadDashboardData();
+        }
+    </script>
+</body>
+</html>
